@@ -1,5 +1,7 @@
 minetest.register_privilege("delprotect","Ignore other players protection")
 
+local MEMBER_REMOVE_CHECK_INTERVAL = 60
+
 protector = {}
 protector.radius = 5
 
@@ -606,4 +608,39 @@ minetest.register_craft({
 		{'group:wood', 'default:copper_ingot', 'group:wood'},
 		{'group:wood', 'group:wood', 'group:wood'},
 	}
+})
+
+minetest.register_abm({
+	nodenames = { "protector:protect", "protector:protect1" },
+    interval = MEMBER_REMOVE_CHECK_INTERVAL,
+    chance = 1,
+	action = function(pos, node)
+		local meta = minetest.get_meta(pos)
+		local member_list = protector.get_member_list(meta)
+		local i, c = 1, #member_list
+
+		while i <= c do
+			local name = member_list[i]
+			if name and (name ~= "") and (not minetest.auth_table[name]) then
+				table.remove(member_list, i)
+			else
+				i = i + 1
+			end
+		end
+
+		local owner = meta:get_string("owner")
+		if not minetest.auth_table[owner] then
+			if #member_list > 0 then
+				meta:set_string("owner", member_list[1])
+				meta:set_string("infotext", "Protection (owned by "..
+						meta:get_string("owner")..")")
+			else
+				minetest.remove_node(pos)
+			end
+		end
+
+		if #member_list ~= c then
+			protector.set_member_list(meta, member_list)
+		end
+	end,
 })
